@@ -1,0 +1,67 @@
+backend/
+│
+├── .env                   # 【重要】MySQL接続情報(HOST, USER, PASS, DB名)を記述
+├── .gitignore             # .env, __pycache__, *.pyc などを除外設定
+├── requirements.txt       # fastapi, uvicorn, sqlalchemy, pymysql, python-jose 等
+├── alembic.ini            # DBマイグレーション設定 (DB変更管理用)
+├── main.py                # アプリ起動のエントリーポイント (URLルーティングの統合)
+│
+├── alembic/               # マイグレーションスクリプト置き場
+│   ├── env.py             # SQLAlchemyのMetadataを読み込む設定
+│   ├── script.py.mako     # テンプレート
+│   └── versions/          # (空または将来の変更スクリプトが入る)
+│
+├── app/                   # アプリケーションソースコード
+│   ├── __init__.py
+│   │
+│   ├── core/              # 【共通基盤】設定・DB接続・認証
+│   │   ├── __init__.py
+│   │   ├── config.py      # .envを読み込むPydantic設定モデル
+│   │   ├── database.py    # MySQLへの接続エンジンとSession作成
+│   │   ├── security.py    # パスワードハッシュ化・JWTトークン生成
+│   │   └── exceptions.py  # カスタム例外クラス定義
+│   │
+│   ├── services/          # 【共通サービス】ドメインに依存しない機能
+│   │   ├── __init__.py
+│   │   └── notification.py # メールや通知の送信ロジック
+│   │
+│   └── modules/           # 【機能別モジュール】
+│       ├── __init__.py
+│       │
+│       ├── user/          # ユーザー機能
+│       │   ├── __init__.py
+│       │   ├── models.py  # 【重要】既存のusersテーブル定義と一致させる
+│       │   ├── schemas.py # リクエスト/レスポンスの型定義
+│       │   ├── crud.py    # DB操作 (SELECT/INSERT)
+│       │   └── api.py     # APIエンドポイント (/users/login 等)
+│       │
+│       ├── group/         # 団体機能
+│       │   ├── __init__.py
+│       │   ├── models.py  # groups, user_groupsテーブルと一致させる
+│       │   ├── schemas.py
+│       │   ├── crud.py
+│       │   └── api.py     # APIエンドポイント (/groups/join 等)
+│       │
+│       ├── task/          # タスク機能
+│       │   ├── __init__.py
+│       │   ├── models.py  # tasksテーブルと一致させる
+│       │   ├── schemas.py
+│       │   ├── crud.py
+│       │   └── api.py     # APIエンドポイント (/tasks/create 等)
+│       │
+│       └── chat/          # チャット連携機能 (LINE/Slack等)
+│           ├── __init__.py
+│           ├── models.py  # (必要であれば) chat_logsテーブル等
+│           ├── schemas.py # Webhookデータの型定義
+│           ├── service.py # 外部API(LINE Messaging API等)を叩く処理
+│           └── api.py     # Webhook受信エンドポイント
+│
+└── tests/                 # テストコード
+    ├── __init__.py
+    ├── conftest.py        # テスト用DB接続フィクスチャ
+    ├── modules/
+    │   ├── test_users.py
+    │   ├── test_groups.py
+    │   └── test_tasks.py
+    └── core/
+        └── test_security.py
