@@ -1,45 +1,39 @@
 import os
-from pathlib import Path
 from pydantic_settings import BaseSettings
 
-# --- ファイルパスの計算ロジック ---
-# 1. このファイル (config.py) がある場所を取得
-#    例: /Users/name/project/backend/src/api
-BASE_DIR = Path(__file__).resolve().parent
-
-# 2. .envファイルがある場所を計算
-#    config.py から見て「3つ上の階層 (api -> src -> backend)」の外側にある .env を指す
-ENV_FILE_PATH = BASE_DIR.parent.parent.parent / ".env"
-
-# --- 設定クラスの定義 ---
 class Settings(BaseSettings):
     """
-    環境変数(.env)の値を読み込んで、変数の型チェックを行うクラスです。
-    pydantic-settings ライブラリが自動でやってくれます。
+    アプリケーション全体の設定クラス
+    .env ファイルの内容を自動的に読み込みます。
     """
+    # プロジェクト名
+    PROJECT_NAME: str = "My Project API"
     
-    # データベース接続に必要な情報
-    db_user: str      # MySQLのユーザー名
-    db_password: str  # MySQLのパスワード
-    db_host: str = "localhost"  # サーバーの場所 (デフォルトは自分自身)
-    db_port: int = 3306         # ポート番号 (MySQLの標準は3306)
-    db_name: str      # データベースの名前
+    # データベース接続情報 (デフォルト値は例として入れていますが、.envが優先されます)
+    # MySQLを使用: mysql+pymysql://<user>:<password>@<host>:<port>/<db_name>
+    DB_USER: str = "root"
+    DB_PASSWORD: str = "password"
+    DB_HOST: str = "localhost"
+    DB_PORT: str = "3306"
+    DB_NAME: str = "myapp_db"
 
-    # セキュリティ設定
-    secret_key: str   # 暗号化に使う秘密の鍵
-    algorithm: str = "HS256"  # 暗号化の方式
-    access_token_expire_minutes: int = 30  # ログイン状態の有効期限(分)
+    # JWT認証用の設定
+    # ※本番環境では必ず強力なランダム文字列に変更してください (openssl rand -hex 32 等で生成)
+    SECRET_KEY: str = "CHANGE_THIS_TO_A_VERY_SECURE_SECRET_KEY"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # トークンの有効期限（分）
 
-    # データベース接続用URLを自動で作るプロパティ
-    # 例: mysql+pymysql://root:password@localhost:3306/mydb
     @property
-    def database_url(self) -> str:
-        return f"mysql+pymysql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+    def DATABASE_URL(self) -> str:
+        """SQLAlchemy用の接続文字列を生成"""
+        return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
-    # クラスの設定
     class Config:
-        env_file = str(ENV_FILE_PATH)  # 読み込むファイルの場所
-        extra = "ignore"  # .envの中に知らない項目があってもエラーにせず無視する
+        # .envファイルを読みに行く設定
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        # 大文字小文字を区別しない（db_userでもDB_USERでもOKにする）
+        case_sensitive = True
 
-# 設定を読み込んでインスタンス化 (これを他のファイルから import して使う)
+# インスタンス化して他のファイルから import できるようにする
 settings = Settings()

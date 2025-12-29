@@ -1,31 +1,32 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from typing import Generator
 
+# 上で作った設定をインポート
 from .config import settings
 
-# config.pyで作ったデータベース接続URLを取得
-SQLALCHEMY_DATABASE_URL = settings.database_url
+# データベースエンジンの作成
+# MySQLの場合、接続が切れないように pool_recycle を設定するのが定石です
+engine = create_engine(
+    settings.DATABASE_URL,
+    pool_recycle=3600,       # 1時間ごとに接続を再利用
+    pool_pre_ping=True,      # 接続前に生存確認を行う（エラー防止）
+    echo=False               # SQLログを出力したい場合は True にする
+)
 
-# 1. エンジンを作成 (データベースへの接続そのものを管理するもの)
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
-
-# 2. セッション作成工場を作成
-#    - autocommit=False: 自動で保存しない (最後に自分で db.commit() するため)
-#    - autoflush=False: 自動でデータを同期しない (意図しないタイミングでの同期を防ぐ)
+# セッション作成クラス
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# 3. モデルの親クラスを作成
-#    models.py でテーブルを定義するときは、必ずこのクラスを継承する
+# モデル定義のための基底クラス (各モデルはこれを継承する)
 Base = declarative_base()
 
-# --- データベース接続用の依存関係関数 ---
-def get_db():
+def get_db() -> Generator:
     """
-    APIのリクエストごとにデータベース接続を開き、
-    処理が終わったら必ず閉じるための関数です。
+    FastAPIの依存関係(Dependency)として使うデータベースセッション取得関数。
+    リクエストの開始時にセッションを作り、完了時に必ず閉じます。
     """
-    db = SessionLocal() # 接続を開く
+    db = SessionLocal()
     try:
-        yield db        # APIの処理に接続を貸し出す
+        yield db
     finally:
-        db.close()      # 何があっても最後は必ず閉じる
+        db.close()
