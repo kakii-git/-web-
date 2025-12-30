@@ -1,11 +1,13 @@
 # backend/app/modules/user/api.py
 
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.core import database, security
-from . import crud, schemas
+from app.modules.user import models as user_models
+from . import crud, schemas, models
 
 router = APIRouter()
 
@@ -47,5 +49,37 @@ def login_for_access_token(
         )
     
     # 3. 認証OKならトークンを発行 (subには一意なemailを入れるのが一般的)
-    access_token = security.create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
+    access_token = security.create_access_token(subject=user.email)
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "user_info":{
+            "id": user.user_id,
+            "name": user.user_name,
+            "email": user.email,
+        }
+    }
+
+# 将来的に、アカウントの凍結を実装するときに必要
+# @router.put("/{user_id}/freeze")
+# def freeze_user(
+#     user_id: str,
+#     freeze: bool = True,  # Trueで凍結、Falseで解除
+#     db: Session = Depends(get_db),
+#     current_user: User = Depends(get_current_user)
+# ):
+#     # 1. 操作者が「システム管理者」かチェック
+#     if not current_user.is_superuser:
+#         raise HTTPException(status_code=403, detail="権限がありません")
+
+#     # 2. 対象ユーザーを取得
+#     target_user = db.query(User).filter(User.user_id == user_id).first()
+#     if not target_user:
+#         raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+
+#     # 3. 凍結フラグを更新 (is_active を反転させる)
+#     target_user.is_active = not freeze 
+#     db.commit()
+
+#     status_msg = "凍結しました" if freeze else "凍結解除しました"
+#     return {"message": f"ユーザー {target_user.email} を{status_msg}"}

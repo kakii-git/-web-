@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+from uuid import UUID
 
 # 依存関係 (プロジェクト構成に合わせて適宜調整してください)
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.modules.user.models import User
+from app.modules.user import models as user_models
 
 from . import crud, schemas, models
 
@@ -27,6 +29,31 @@ def check_group_admin_permission(current_user: User, group_id: str, db: Session)
             detail="この操作を行う権限がありません（管理者権限が必要です）。"
         )
     return member_record
+
+def get_user_by_identifier(db: Session, identifier: str) -> User:
+    """
+    識別子 (identifier) が UUID なのか Email なのかを自動判別し、
+    対応する User オブジェクトをデータベースから検索して返す内部関数。
+    """
+    target_user = None
+    
+    # 1. UUID形式かどうかチェック
+    is_uuid = False
+    try:
+        UUID(str(identifier))
+        is_uuid = True
+    except ValueError:
+        is_uuid = False
+
+    # 2. 検索実行
+    if is_uuid:
+        # UUIDなら user_id で検索
+        target_user = db.query(user_models.User).filter(user_models.User.user_id == identifier).first()
+    else:
+        # UUIDでないなら email で検索
+        target_user = db.query(user_models.User).filter(user_models.User.email == identifier).first()
+        
+    return target_user
 
 # --- エンドポイント ---
 
@@ -56,11 +83,98 @@ def request_join_group(
     crud.join_group(db, join_in, current_user.user_id)
     return {"message": "加入申請を送信しました。管理者の承認をお待ちください。"}
 
+@router.get("/{group_id}/members", response_model=List[schemas.GroupMemberResponse])
+def get_group_members(
+    group_id: str,
+    accepted_only: bool = True,  # Trueなら「正式メンバー」、Falseなら「申請中リスト」を返す
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    グループのメンバー一覧を取得します。
+    - ?accepted_only=true (デフォルト): 正式に加入しているメンバーのみ返す（名簿用）
+    - ?accepted_only=false: 加入申請中のユーザーのみ返す（管理者による承認画面用）
+    """
+    # 1. 権限チェック (メンバーなら誰でも見れるか、管理者だけかは要件次第)
+    # ここでは「グループに参加している人なら見れる」と仮定
+    # check_group_member_permission(current_user, group_id, db) 
+
+    # 2. クエリ作成
+    query = db.query(models.UserGroup, user_models.User).join(
+        user_models.User, 
+        models.UserGroup.user_id == user_models.User.user_id # IDで結合
+    ).filter(
+        models.UserGroup.group_id == group_id
+    )
+
+    # 3. フィルタリング (正式メンバーか、申請中か)
+    if accepted_only:
+        query = query.filter(models.UserGroup.accepted == True)
+    else:
+        check_group_admin_permission(current_user, group_id, db) 
+        query = query.filter(models.UserGroup.accepted == False)
+
+    results = query.all()
+
+    # 4. データを整形してレスポンスの形にする
+    # DBからは (Memberオブジェクト, Userオブジェクト) のタプルが返ってくるので
+    # それを GroupMemberResponse の形にマッピングします。
+    response_list = []
+    for member, user in results:
+        response_list.append(schemas.GroupMemberResponse(
+            user_id=user.user_id,
+            user_name=user.user_name,       # User側から取得
+            email=user.email,               # User側から取得
+            is_representative=member.is_representative, # Member側から取得
+            accepted=member.accepted,       # Member側から取得
+            joined_at=member.joined_at      # Member側から取得
+        ))
+
+    return response_list
+
+# === 加入申請の承認・拒否エンドポイント ===
+
+@router.put("/{group_id}/join_requests", status_code=status.HTTP_200_OK)
+def handle_join_request(
+    group_id: str,
+    action_in: schemas.GroupRequestAction,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    ユーザーからの加入申請を処理します（管理者専用）。
+    - target_identifier: ユーザーID(UUID) または Email
+    - action: "approve" (承認) または "reject" (拒否/削除)
+    """
+    
+    # 1. 権限チェック: 操作者がこのグループの管理者か？
+    check_group_admin_permission(current_user, group_id, db)
+
+    # 2. ターゲットユーザーの特定 (UUID or Email 自動判別)
+    target_user = get_user_by_identifier(db, action_in.target_identifier)
+
+    # ユーザーが見つからない場合
+    if not target_user:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"指定されたユーザー({action_in.target_identifier})が見つかりません。"
+        )
+
+    # 3. CRUDに処理を委譲
+    result_message = crud.process_join_request(
+        db=db, 
+        group_id=group_id, 
+        user_id=target_user.user_id, # 特定したIDを渡す
+        action=action_in.action
+    )
+
+    return {"message": result_message, "target_user": target_user.email}
+
 
 @router.put("/{group_id}/members/{target_user_id}", response_model=schemas.GroupMemberResponse)
 def manage_member(
     group_id: str,
-    target_user_id: str,
+    target_identifier: str,
     status_update: schemas.MemberStatusUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -73,18 +187,33 @@ def manage_member(
     # 権限チェック: 操作者が管理者であるか
     check_group_admin_permission(current_user, group_id, db)
 
-    updated_member = crud.update_member_status(db, group_id, target_user_id, status_update)
+    target_user = get_user_by_identifier(db, target_identifier)
+    if not target_user:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"指定されたユーザー({target_identifier})が見つかりません。"
+        )
     
-    # レスポンス用にuser_nameなどを埋める必要がありますが、
-    # ここでは簡易的にORMオブジェクトを返却し、response_modelのfrom_attributesに任せます。
-    # 必要に応じてUserテーブルをjoinして名前を取得してください。
-    return updated_member
-
+    updated_member = crud.update_member_status(
+        db=db, 
+        group_id=group_id, 
+        target_user_id=target_user.user_id, 
+        updates=status_update
+    )
+    
+    return schemas.GroupMemberResponse(
+        user_id=target_user.user_id,
+        user_name=target_user.user_name,
+        email=target_user.email,
+        is_representative=updated_member.is_representative,
+        accepted=updated_member.accepted,
+        joined_at=updated_member.joined_at
+    )
 
 @router.delete("/{group_id}/members/{target_user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def leave_or_remove_member(
     group_id: str,
-    target_user_id: str,
+    target_identifier: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -94,14 +223,24 @@ def leave_or_remove_member(
     2. 管理者が他人を指定 -> 「除名」 (管理者権限が必要)
     """
     
+    target_user = get_user_by_identifier(db, target_identifier)
+
+    if not target_user:
+        raise HTTPException(
+            status_code=404,
+            detail="指定されたユーザーが見つかりません。",
+        )
+
+    target_user_id = target_user.user_id
+
     # 1. 脱退 (自分自身を削除)
     if current_user.user_id == target_user_id:
-        crud.remove_member(db, group_id, target_user_id)
-        return
-
-    # 2. 除名 (他者を削除)
-    # 操作者が管理者であるかチェック
-    check_group_admin_permission(current_user, group_id, db)
+        pass
+    else:
+        # 2. 除名 (他者を削除)
+        # 操作者が管理者であるかチェック
+        check_group_admin_permission(current_user, group_id, db)
     
     crud.remove_member(db, group_id, target_user_id)
+
     return

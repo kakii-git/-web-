@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from typing import Optional, List
 from datetime import datetime
 
@@ -23,6 +23,18 @@ class GroupJoin(BaseModel):
     group_id: str = Field(..., description="参加したいグループのID")
     group_name: str = Field(..., description="参加したいグループの名前(確認用)")
 
+# === 【追加】加入申請処理用スキーマ ===
+class GroupRequestAction(BaseModel):
+    """
+    管理者が加入申請を処理するためのスキーマ
+    """
+    # UUID(ID) または Email が入力される想定
+    target_identifier: str = Field(..., description="対象ユーザーのID(UUID) または Email")
+    
+    # アクション: approve(承認) または reject(拒否)
+    action: str = Field(..., pattern="^(approve|reject)$", description="'approve' または 'reject'")
+
+
 class MemberStatusUpdate(BaseModel):
     """
     メンバーの状態更新用（管理者が使用）
@@ -38,6 +50,7 @@ class GroupMemberResponse(BaseModel):
     """グループ内のメンバー情報表示用"""
     user_id: str
     user_name: str # Userモデルからjoinして取得する想定
+    email: EmailStr
     is_representative: bool
     accepted: bool
     joined_at: datetime

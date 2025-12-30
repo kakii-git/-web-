@@ -7,7 +7,7 @@ from app.core import security
 from app.core.config import settings
 from app.core.database import get_db
 # ユーザー検索のために user モジュールの crud をインポート
-from app.modules.user import crud
+from app.modules.user import crud as user_crud
 
 # トークンの受け渡し場所（URL）の定義
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -36,19 +36,24 @@ def get_current_user(
         )
         
         # sub (subject) には user_id や username が入っているはず
-        username: str = payload.get("sub")
+        email: str = payload.get("sub")
         
-        if username is None:
+        if email is None:
             raise credentials_exception
             
     except JWTError:
         raise credentials_exception
     
     # DBからユーザーを検索
-    # ※ user.crud の get_user_by_username が必要です
-    user = crud.get_user_by_username(db, user_name=username)
+    # ※ user.crud の get_user_by_email が必要です
+    user = user_crud.get_user_by_email(db, email=email)
     
     if user is None:
         raise credentials_exception
-        
+
+    # 将来的に、アカウントの凍結を実装するときに必要
+    # ★追加: ここで凍結チェック！
+    # if not user.is_active:
+    #     raise HTTPException(status_code=400, detail="このアカウントは凍結されています。")
+
     return user

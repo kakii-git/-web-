@@ -16,6 +16,44 @@ def get_user_group(db: Session, user_id: str, group_id: str):
     ).first()
 
 # --- 作成・加入系 ---
+# === 【追加】申請処理ロジック ===
+
+def process_join_request(db: Session, group_id: str, user_id: str, action: str) -> str:
+    """
+    加入申請を承認または拒否する
+    """
+    # 1. 該当するメンバーシップ（申請データ）を取得
+    member = get_user_group(db, user_id, group_id)
+
+    # データが存在しない場合
+    if not member:
+        raise HTTPException(status_code=404, detail="該当ユーザーからの加入申請が見つかりません。")
+
+    # 既に承認済みの場合（二重承認の防止）
+    if member.accepted:
+        raise HTTPException(status_code=400, detail="このユーザーは既に参加済み(承認済み)です。")
+
+    # 2. アクションによる分岐
+    if action == "approve":
+        # === 承認処理 ===
+        member.accepted = True
+        # 必要であればここで役職などを初期設定する (例: status="MEMBER")
+        db.add(member)
+        db.commit()
+        db.refresh(member)
+        return "加入申請を承認しました。"
+
+    elif action == "reject":
+        # === 拒否処理 ===
+        # 仕様: 「データベースから削除する」
+        db.delete(member)
+        db.commit()
+        return "加入申請を拒否(削除)しました。"
+    
+    else:
+        # スキーマで弾いているはずだが念のため
+        raise HTTPException(status_code=400, detail="不正なアクションです。")
+
 
 def create_group(db: Session, group_in: schemas.GroupCreate, creator_user_id: str):
     """
@@ -35,6 +73,13 @@ def create_group(db: Session, group_in: schemas.GroupCreate, creator_user_id: st
         is_representative=True, # 管理者
         accepted=True           # 参加済み
     )
+
+    my_status_data = {
+        "is_representative": True,
+        "accepted": True,
+    }
+    setattr(db_group, "my_status", my_status_data)
+
     db.add(db_member)
     
     db.commit()
@@ -107,3 +152,5 @@ def remove_member(db: Session, group_id: str, target_user_id: str):
     db.delete(member)
     db.commit()
     return True
+
+# 人がいなくなった団体は自動で削除するようにしたい(予定)

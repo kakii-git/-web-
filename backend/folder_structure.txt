@@ -1,7 +1,8 @@
 backend/
 │
-├── .env                   # 【重要】MySQL接続情報(HOST, USER, PASS, DB名)を記述
-├── .gitignore             # .env, __pycache__, *.pyc などを除外設定
+├── .env                   # 【重要】MySQL接続情報(HOST, USER, PASS, DB名)を記述(ルート直下に移動)
+├── .gitignore             # .env, __pycache__, *.pyc などを除外設定(ルート直下に移動)
+├── folder_structure.txt   # フォルダ構成を記録
 ├── requirements.txt       # fastapi, uvicorn, sqlalchemy, pymysql, python-jose 等
 ├── alembic.ini            # DBマイグレーション設定 (DB変更管理用)
 ├── main.py                # アプリ起動のエントリーポイント (URLルーティングの統合)
@@ -19,6 +20,7 @@ backend/
 │   │   ├── config.py      # .envを読み込むPydantic設定モデル
 │   │   ├── database.py    # MySQLへの接続エンジンとSession作成
 │   │   ├── security.py    # パスワードハッシュ化・JWTトークン生成
+│   │   ├── dependencies.py# 誰に依存した操作であるかを調べる
 │   │   └── exceptions.py  # カスタム例外クラス定義
 │   │
 │   ├── services/          # 【共通サービス】ドメインに依存しない機能

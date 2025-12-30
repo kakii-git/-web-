@@ -39,7 +39,13 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # --- リレーション定義 (テーブル間の繋がり) ---
-    
+
+    # 将来的に、アカウントの凍結を実装するときに必要
+    # # ★追加: システム管理者権限 (グループの代表者とは別格の権限)
+    # is_superuser = Column(Boolean, default=False)
+    # # ★追加: アカウントが有効かどうか (Falseなら凍結)
+    # is_active = Column(Boolean, default=True)   
+
     # 所属するグループ情報（UserGroupテーブル）へのリンク。
     # 重要: ここで `from app.modules.group.models import UserGroup` と書いてimportすると、
     # 向こうもUserをimportしているため「循環参照エラー」になります。
