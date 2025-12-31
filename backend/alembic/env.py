@@ -11,6 +11,8 @@ from alembic import context
 from app.core.database import Base
 from app.modules.user import models as user_models
 from app.modules.group import models as group_models
+from app.modules.task import models as task_models
+from app.modules.calendar import models as calendar_models
 
 config = context.config
 
