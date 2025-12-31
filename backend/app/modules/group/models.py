@@ -40,8 +40,8 @@ class GroupMember(Base):
     # 修正: id -> user_group_id
     user_group_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     
-    user_id = Column(String(36), ForeignKey("users.user_id"), nullable=False)
-    group_id = Column(String(36), ForeignKey("groups.group_id"), nullable=False)
+    user_id = Column(String(36), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    group_id = Column(String(36), ForeignKey("groups.group_id", ondelete="CASCADE"), nullable=False)
 
     # 権限・状態フラグ
     is_representative = Column(Boolean, default=False, comment="代表者フラグ (True=代表/管理者)")
