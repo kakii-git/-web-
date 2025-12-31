@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.core import database, security
+from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.modules.user import models as user_models
 from . import crud, schemas, models
@@ -26,7 +27,7 @@ def signup(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
     # DBに保存
     return crud.create_user(db=db, user=user)
 
-@router.post("/token", response_model=schemas.Token)
+@router.post("/login", response_model=schemas.Token)
 def login_for_access_token(
     # OAuth2標準フォーム (username, passwordフィールドを持つ) を使用
     # フロントエンドからは username フィールドに「メールアドレス」を入れて送信してもらう
@@ -42,7 +43,7 @@ def login_for_access_token(
     user = crud.get_user_by_email(db, email=form_data.username)
     
     # 2. ユーザーが存在しない、またはパスワードが一致しない場合のエラー処理
-    if not user or not security.verify_password(form_data.password, user.password_hash):
+    if not user or not security.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -85,6 +86,26 @@ def logout(current_user: user_models.User = Depends(get_current_user)):
     # print(f"User {current_user.email} has logged out.")
     
     return {"message": "ログアウトしました。ブラウザのトークンを破棄してください。"}
+
+@router.delete("/profile", status_code=status.HTTP_204_NO_CONTENT)
+def delete_my_account(
+    # ログイン中のユーザー情報を自動取得（トークンが必要になります）
+    current_user: models.User = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+    """
+    ログイン中のユーザー自身のアカウントを削除します。
+    """
+    # crudの削除関数を呼び出す
+    # success = crud.delete_user(db, user_id=current_user.user_id)
+    success = crud.delete_user(db, user_id=current_user.user_id)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # 204 No Content は「成功したけど返すデータはない」という意味
+    return
+
 
 # 将来的に、アカウントの凍結を実装するときに必要
 # @router.put("/{user_id}/freeze")
