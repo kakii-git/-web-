@@ -26,7 +26,11 @@ class Group(Base):
 
     # リレーション: 中間テーブル(GroupMember)を通じてUserと関連付け
     user_groups = relationship("GroupMember", back_populates="group", cascade="all, delete-orphan")
-
+    tasks = relationship(
+        "app.modules.task.models.Task", 
+        back_populates="group", 
+        cascade="all, delete-orphan" # グループ削除時にタスクも全消去
+    )
 
 class GroupMember(Base):
     """
