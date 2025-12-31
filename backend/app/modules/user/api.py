@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.core import database, security
+from app.core.dependencies import get_current_user
 from app.modules.user import models as user_models
 from . import crud, schemas, models
 
@@ -59,6 +60,31 @@ def login_for_access_token(
             "email": user.email,
         }
     }
+
+# === 【追加】ログアウト用エンドポイント ===
+@router.post("/logout", status_code=status.HTTP_200_OK)
+def logout(current_user: user_models.User = Depends(get_current_user)):
+    """
+    ログアウトAPI
+    URL: POST /users/logout
+    
+    【注意】
+    JWT認証はステートレス（サーバー側でセッションを持たない）であるため、
+    サーバー側でトークンを無効化する処理は、ブラックリスト機能を実装しない限り行えません。
+    
+    このエンドポイントの主な役割は以下の通りです：
+    1. クライアントに対して「ログアウト処理の受付」を完了したことを伝える
+    2. 必要であれば「誰がいつログアウトしたか」をログに残す
+    
+    ★フロントエンド側での実装必須事項:
+    このAPIを叩いた後（あるいは同時に）、必ずブラウザの LocalStorage や Cookie から
+    アクセストークンを削除してください。
+    """
+    
+    # ここにログ出力処理などを書くことができます
+    # print(f"User {current_user.email} has logged out.")
+    
+    return {"message": "ログアウトしました。ブラウザのトークンを破棄してください。"}
 
 # 将来的に、アカウントの凍結を実装するときに必要
 # @router.put("/{user_id}/freeze")
