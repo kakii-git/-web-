@@ -46,6 +46,7 @@ app.add_middleware(
 # 作成したモジュールごとのルーターをここでメインアプリに登録します。
 app.include_router(user_router)
 app.include_router(group_router)
+app.include_router(task_router)
 
 # --- ヘルスチェック用エンドポイント ---
 # サーバーが動いているか確認するための簡易URL (http://localhost:8000/)
