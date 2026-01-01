@@ -1,9 +1,10 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from typing import Optional
 
 from . import models, schemas
 
-# --- Task本体の操作 ---
+# --- Task本体 ---
 
 def create_task(db: Session, task_in: schemas.TaskCreate, group_id: str):
     db_task = models.Task(
@@ -41,38 +42,67 @@ def delete_task(db: Session, db_task: models.Task):
     db.delete(db_task)
     db.commit()
 
-# --- Relation (担当/参加) の操作 ---
-
-def add_user_to_task(db: Session, task_id: str, user_id: str, is_assigned: bool = False):
-    """タスクにユーザーを関連付ける（初期状態）"""
-    try:
-        relation = models.TaskUser_Relation(
-            task_id=task_id,
-            user_id=user_id,
-            is_assigned=is_assigned,
-            reaction="no-reaction"
-        )
-        db.add(relation)
-        db.commit()
-        db.refresh(relation)
-        return relation
-    except IntegrityError:
-        db.rollback()
-        return None # すでに追加済みの場合は無視あるいはエラーハンドリング
+# --- Relation (担当/参加/コメント) のロジック ---
 
 def get_relation(db: Session, task_id: str, user_id: str):
-    """特定のユーザーとタスクの関係を取得"""
     return db.query(models.TaskUser_Relation).filter(
         models.TaskUser_Relation.task_id == task_id,
         models.TaskUser_Relation.user_id == user_id
     ).first()
 
-def update_relation(db: Session, db_relation: models.TaskUser_Relation, relation_update: schemas.TaskUserRelationUpdate):
-    """リアクションやコメント、担当フラグの更新"""
-    update_data = relation_update.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_relation, field, value)
-    db.add(db_relation)
-    db.commit()
-    db.refresh(db_relation)
-    return db_relation
+def _ensure_relation(db: Session, task_id: str, user_id: str) -> models.TaskUser_Relation:
+    """リレーションを取得、なければ作成して返す内部関数"""
+    relation = get_relation(db, task_id, user_id)
+    if not relation:
+        relation = models.TaskUser_Relation(
+            task_id=task_id,
+            user_id=user_id,
+            is_assigned=False,
+            reaction="no-reaction",
+            comment=None
+        )
+        db.add(relation)
+        # flushしてIDなどを確定させるが、commitは呼び出し元に任せるかここで一区切りするか
+        # ここでは後続処理があるため add の状態にしておく
+    return relation
+
+def _cleanup_relation(db: Session, relation: models.TaskUser_Relation):
+    """
+    条件: 担当でなく、リアクションも 'no-reaction' で、コメントも空ならレコード削除
+    """
+    # None対策
+    comment_content = relation.comment if relation.comment else ""
+    
+    if (not relation.is_assigned) and \
+       (relation.reaction == "no-reaction") and \
+       (not comment_content.strip()):
+        
+        db.delete(relation)
+        db.commit()
+        return None # 削除されたことを示す
+    else:
+        db.commit()
+        db.refresh(relation)
+        return relation
+
+def set_user_assignment(db: Session, task_id: str, user_id: str, is_assigned: bool):
+    """管理者による担当者任命/解除"""
+    relation = _ensure_relation(db, task_id, user_id)
+    
+    relation.is_assigned = is_assigned
+    
+    # 保存または削除判定
+    return _cleanup_relation(db, relation)
+
+def update_user_reaction(db: Session, task_id: str, user_id: str, reaction: Optional[str], comment: Optional[str]):
+    """ユーザーによるリアクション/コメント更新"""
+    relation = _ensure_relation(db, task_id, user_id)
+    
+    if reaction is not None:
+        relation.reaction = reaction
+    if comment is not None:
+        # 空文字が来たらNoneにするか、そのまま空文字にするか。ここではそのまま保存しcleanupで判定
+        relation.comment = comment
+
+    # 保存または削除判定
+    return _cleanup_relation(db, relation)

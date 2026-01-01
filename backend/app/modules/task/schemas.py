@@ -2,31 +2,37 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
-from app.modules.user.schemas import UserResponse # ユーザー情報を表示するために必要
+from app.modules.user.schemas import UserResponse
 
-# --- 中間テーブル (Relation) 用のスキーマ ---
+# --- 中間テーブル (Relation) 用 ---
 
 class TaskUserRelationBase(BaseModel):
     is_assigned: bool = False
     reaction: str = "no-reaction"
     comment: Optional[str] = None
 
-class TaskUserRelationUpdate(BaseModel):
-    """ユーザーが自分のリアクションやコメントを更新する用"""
-    reaction: Optional[str] = None
-    comment: Optional[str] = None
-    is_assigned: Optional[bool] = None
-
 class TaskUserRelationResponse(TaskUserRelationBase):
-    """タスク詳細に含まれるメンバー情報"""
+    """クライアントへの返却用"""
     relation_id: str
     user_id: str
-    user: Optional[UserResponse] = None # 誰のリアクションかを表示するため
+    user: Optional[UserResponse] = None
 
     class Config:
         from_attributes = True
 
-# --- タスク本体 (Task) 用のスキーマ ---
+# --- APIリクエスト用スキーマ ---
+
+class TaskAssignmentUpdate(BaseModel):
+    """管理者による担当者任命用"""
+    target_identifier: str # user_id(UUID) or email
+    is_assigned: bool
+
+class MyReactionUpdate(BaseModel):
+    """自分のリアクション更新用"""
+    reaction: Optional[str] = None
+    comment: Optional[str] = None
+
+# --- Task本体 ---
 
 class TaskBase(BaseModel):
     title: str
@@ -39,11 +45,9 @@ class TaskBase(BaseModel):
     status: str
 
 class TaskCreate(TaskBase):
-    """タスク作成時に受け取るデータ"""
     pass
 
 class TaskUpdate(BaseModel):
-    """タスク更新用 (全てOptional)"""
     title: Optional[str] = None
     date: Optional[datetime] = None
     time_span_begin: Optional[datetime] = None
@@ -54,13 +58,12 @@ class TaskUpdate(BaseModel):
     status: Optional[str] = None
 
 class TaskResponse(TaskBase):
-    """クライアントに返すタスクデータ"""
     task_id: str
     group_id: str
     created_at: datetime
     updated_at: Optional[datetime] = None
     
-    # 関連するユーザー（担当者や参加者）のリストを含める
+    # リレーション情報（担当者や参加者）
     task_user_relations: List[TaskUserRelationResponse] = []
 
     class Config:
