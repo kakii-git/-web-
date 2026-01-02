@@ -1,7 +1,7 @@
 # backend/app/modules/task/models.py
 
 import uuid
-from sqlalchemy import Column, String, Text, Boolean, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, String, Text, Boolean, DateTime, Date, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -21,7 +21,7 @@ class Task(Base):
 
     title = Column(String(255), nullable=False)
 
-    date = Column(DateTime, nullable=False)
+    date = Column(Date, nullable=False)
 
     time_span_begin = Column(DateTime)
 
@@ -77,3 +77,24 @@ class TaskUser_Relation(Base):
     __table_args__ = (
         UniqueConstraint('task_id', 'user_id', name='unique_task_user_membership'),
     )
+
+# --- タスクテンプレートモデル ---
+class TaskTemplate(Base):
+    """
+    よく使うタスクの雛形を保存するテーブル
+    """
+    __tablename__ = "task_templates"
+
+    template_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    group_id = Column(String(36), ForeignKey("groups.group_id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    name = Column(String(255), nullable=False, comment="テンプレートの管理名（例：定例会議）")
+    
+    # 以下、タスク作成時にコピーされる初期値
+    title = Column(String(255), nullable=False)
+    location = Column(String(255))
+    description = Column(Text)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    group = relationship("app.modules.group.models.Group", back_populates="task_templates")

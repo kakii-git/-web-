@@ -1,4 +1,4 @@
-from sqlalchemy import or_, desc
+from sqlalchemy import or_, desc, extract
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError
 from typing import Optional
@@ -35,13 +35,13 @@ def get_tasks_by_group_advanced(
     # 1. 日付範囲フィルタ
     if from_date_str:
         try:
-            from_dt = datetime.strptime(from_date_str, "%Y-%m-%d")
+            from_dt = datetime.strptime(from_date_str, "%Y-%m-%d").date()
             query = query.filter(models.Task.date >= from_dt)
         except ValueError:
             pass # 形式エラーは無視またはエラーハンドリング
     if to_date_str:
         try:
-            to_dt = datetime.strptime(to_date_str, "%Y-%m-%d")
+            to_dt = datetime.strptime(to_date_str, "%Y-%m-%d").date()
             # 指定日の23:59:59までを含めるため、日付+時間を調整するか、
             # 単純な日付比較ならDBの型によるが、ここでは単純比較と仮定
             query = query.filter(models.Task.date <= to_dt)
@@ -168,3 +168,53 @@ def update_user_reaction(db: Session, task_id: str, user_id: str, reaction: Opti
 
     # 保存または削除判定
     return _cleanup_relation(db, relation)
+
+# --- カレンダー用データ取得 ---
+
+def get_calendar_tasks(db: Session, group_id: str, year: int, month: int):
+    """
+    指定された年・月のタスクを軽量に取得する。
+    joinedloadなどは使わず、Taskテーブルのみから必要なカラムを取得。
+    """
+    return db.query(
+            models.Task.task_id,
+            models.Task.title,
+            models.Task.date,
+            models.Task.time_span_begin,
+            models.Task.time_span_end,
+            models.Task.location
+        )\
+        .filter(models.Task.group_id == group_id)\
+        .filter(extract('year', models.Task.date) == year)\
+        .filter(extract('month', models.Task.date) == month)\
+        .order_by(models.Task.date.asc())\
+        .all()
+
+
+# --- タスクテンプレート用CRUD ---
+
+def create_template(db: Session, template_in: schemas.TaskTemplateCreate, group_id: str):
+    db_template = models.TaskTemplate(
+        **template_in.model_dump(),
+        group_id=group_id
+    )
+    db.add(db_template)
+    db.commit()
+    db.refresh(db_template)
+    return db_template
+
+def get_templates(db: Session, group_id: str):
+    return db.query(models.TaskTemplate)\
+        .filter(models.TaskTemplate.group_id == group_id)\
+        .order_by(models.TaskTemplate.created_at.desc())\
+        .all()
+
+def delete_template(db: Session, template: models.TaskTemplate):
+    db.delete(template)
+    db.commit()
+
+def get_template(db: Session, template_id: str, group_id: str):
+    return db.query(models.TaskTemplate).filter(
+        models.TaskTemplate.template_id == template_id,
+        models.TaskTemplate.group_id == group_id
+    ).first()

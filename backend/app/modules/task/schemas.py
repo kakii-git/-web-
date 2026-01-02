@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, date
 
 from app.modules.user.schemas import UserResponse
 
@@ -36,7 +36,7 @@ class MyReactionUpdate(BaseModel):
 
 class TaskBase(BaseModel):
     title: str
-    date: datetime
+    date: date
     time_span_begin: Optional[datetime] = None
     time_span_end: Optional[datetime] = None
     location: Optional[str] = None
@@ -49,7 +49,7 @@ class TaskCreate(TaskBase):
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
-    date: Optional[datetime] = None
+    date: Optional[date] = None
     time_span_begin: Optional[datetime] = None
     time_span_end: Optional[datetime] = None
     location: Optional[str] = None
@@ -65,6 +65,41 @@ class TaskResponse(TaskBase):
     
     # リレーション情報（担当者や参加者）
     task_user_relations: List[TaskUserRelationResponse] = []
+
+    class Config:
+        from_attributes = True
+
+# --- タスクテンプレート用スキーマ ---
+
+class TaskTemplateBase(BaseModel):
+    name: str  # テンプレート名
+    title: str # タスクタイトル初期値
+    location: Optional[str] = None
+    description: Optional[str] = None
+
+class TaskTemplateCreate(TaskTemplateBase):
+    pass
+
+class TaskTemplateResponse(TaskTemplateBase):
+    template_id: str
+    group_id: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# --- カレンダービュー用 軽量スキーマ ---
+
+class CalendarTaskResponse(BaseModel):
+    """月表示カレンダー用の軽量データ"""
+    task_id: str
+    title: str
+    date: date
+    time_span_begin: Optional[datetime] = None
+    time_span_end: Optional[datetime] = None
+    location: Optional[str] = None
+    
+    # 担当者情報などの重いデータは含めない
 
     class Config:
         from_attributes = True

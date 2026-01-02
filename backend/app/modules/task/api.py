@@ -212,3 +212,61 @@ def update_my_reaction(
         reaction=reaction_in.reaction, 
         comment=reaction_in.comment
     )
+
+# --- カレンダービュー用API (軽量) ---
+
+@router.get("/calendar", response_model=List[schemas.CalendarTaskResponse])
+def read_calendar_tasks(
+    group_id: str,
+    year: int = Query(..., description="対象年 (例: 2026)"),
+    month: int = Query(..., ge=1, le=12, description="対象月 (1-12)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    月表示カレンダー用の軽量なタスクデータを取得する。
+    リレーションを含まず、日付、時間、場所、タイトルのみを返す。
+    """
+    check_group_member(db, group_id, current_user.user_id)
+    return crud.get_calendar_tasks(db, group_id, year, month)
+
+
+# --- タスクテンプレート管理API ---
+
+@router.post("/templates", response_model=schemas.TaskTemplateResponse)
+def create_template(
+    group_id: str,
+    template_in: schemas.TaskTemplateCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """【管理者専用】タスクの雛形を作成する"""
+    check_group_admin_permission(current_user, group_id, db)
+    return crud.create_template(db, template_in, group_id)
+
+@router.get("/templates", response_model=List[schemas.TaskTemplateResponse])
+def read_templates(
+    group_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """保存されたテンプレート一覧を取得する（メンバー全員可能）"""
+    check_group_member(db, group_id, current_user.user_id)
+    return crud.get_templates(db, group_id)
+
+@router.delete("/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_template(
+    group_id: str,
+    template_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """【管理者専用】テンプレートを削除する"""
+    check_group_admin_permission(current_user, group_id, db)
+    
+    template = crud.get_template(db, template_id, group_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+        
+    crud.delete_template(db, template)
+    return
