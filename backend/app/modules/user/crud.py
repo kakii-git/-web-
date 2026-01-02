@@ -49,6 +49,18 @@ def delete_user(db: Session, user_id: str):
         return True
     return False
 
+def toggle_user_active_status(db: Session, user_id: str, is_active: bool):
+    """
+    ユーザーの有効/無効(凍結)状態を切り替える
+    """
+    user = db.query(models.User).filter(models.User.user_id == user_id).first()
+    if user:
+        user.is_active = is_active
+        db.commit()
+        db.refresh(user)
+        return user
+    return None
+
 # --- ★以下を追加: 所属グループ取得関数 ---
 def get_user_joined_groups(db: Session, user_id: str):
     """

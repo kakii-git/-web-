@@ -1,7 +1,7 @@
 # backend/app/modules/user/models.py
 
 import uuid
-from sqlalchemy import Column, String, DateTime
+from sqlalchemy import Column, String, Boolean, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -38,11 +38,12 @@ class User(Base):
     # updated_at: 更新日時。データ更新時に自動で現在時刻が入ります(onupdate)。
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # 将来的に、アカウントの凍結を実装するときに必要
-    # # ★追加: システム管理者権限 (グループの代表者とは別格の権限)
-    # is_superuser = Column(Boolean, default=False)
-    # # ★追加: アカウントが有効かどうか (Falseなら凍結)
-    # is_active = Column(Boolean, default=True)   
+    # ★追加: スーパーユーザー権限フラグ
+    # default=False により、何も指定せずに作成されたユーザーは自動的に False (一般) になります
+    is_superuser = Column(Boolean, default=False, nullable=False)
+    # アカウント有効フラグ (True=通常, False=凍結)
+    # デフォルトはTrue(有効)。Falseにするとログインできなくなります。
+    is_active = Column(Boolean, default=True, nullable=False)
 
     # --- リレーション定義 (テーブル間の繋がり) ---
     # 所属するグループ情報（GroupMemberテーブル）へのリンク。

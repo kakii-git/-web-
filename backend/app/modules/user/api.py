@@ -50,7 +50,14 @@ def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # 3. 認証OKならトークンを発行 (subには一意なemailを入れるのが一般的)
+    # 3. 凍結アカウントチェック
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Account is frozen."
+        )
+    
+    # 4. 認証OKならトークンを発行 (subには一意なemailを入れるのが一般的)
     access_token = security.create_access_token(subject=user.email)
     return {
         "access_token": access_token, 
@@ -122,26 +129,35 @@ def read_my_groups(
     """
     return crud.get_user_joined_groups(db, user_id=current_user.user_id)
 
-# 将来的に、アカウントの凍結を実装するときに必要
-# @router.put("/{user_id}/freeze")
-# def freeze_user(
-#     user_id: str,
-#     freeze: bool = True,  # Trueで凍結、Falseで解除
-#     db: Session = Depends(get_db),
-#     current_user: User = Depends(get_current_user)
-# ):
-#     # 1. 操作者が「システム管理者」かチェック
-#     if not current_user.is_superuser:
-#         raise HTTPException(status_code=403, detail="権限がありません")
+# 2. 凍結用APIの追加: Superuserのみ実行可能
+@router.put("/{user_id}/status", response_model=schemas.UserResponse)
+def change_user_status(
+    user_id: str,
+    status_in: schemas.FreezeRequest,
+    db: Session = Depends(get_db),
+    current_user: user_models.User = Depends(get_current_user)
+):
+    """
+    【Superuser専用】
+    指定したユーザーのアカウントを凍結(False)または解除(True)する。
+    """
+    # 権限チェック: 実行者がSuperuserでなければ拒否
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions"
+        )
 
-#     # 2. 対象ユーザーを取得
-#     target_user = db.query(User).filter(User.user_id == user_id).first()
-#     if not target_user:
-#         raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+    # 自分自身を凍結してしまうのを防ぐ（誤操作防止）
+    if current_user.user_id == user_id and not status_in.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot freeze your own account."
+        )
 
-#     # 3. 凍結フラグを更新 (is_active を反転させる)
-#     target_user.is_active = not freeze 
-#     db.commit()
-
-#     status_msg = "凍結しました" if freeze else "凍結解除しました"
-#     return {"message": f"ユーザー {target_user.email} を{status_msg}"}
+    updated_user = crud.toggle_user_active_status(db, user_id, status_in.is_active)
+    
+    if not updated_user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    return updated_user
