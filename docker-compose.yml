@@ -12,15 +12,26 @@ services:
     volumes:
       - db_data:/var/lib/mysql      # データを永続化するためのボリューム
 
+# ▼▼▼ 修正点1: ヘルスチェックを追加 ▼▼▼
+    healthcheck:
+      # rootユーザーを使って接続確認を行います
+      # $$ は docker-compose.yml 内で変数を扱うためのエスケープ記述です
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s # 初回起動時は遅いので10秒猶予を与える
+
   backend:
     build: ./backend
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
-      - ./backend:/app                     # ホストのコード変更をコンテナに即時反映
+      - ./backend:/code                    # ホストのコード変更をコンテナに即時反映
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     env_file:
       - .env                        # 環境変数を読み込む
 

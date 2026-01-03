@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from . import models, schemas
 
 # --- 取得系 ---
@@ -14,6 +14,12 @@ def get_user_group(db: Session, user_id: str, group_id: str):
     return db.query(models.GroupMember).filter(
         and_(models.GroupMember.user_id == user_id, models.GroupMember.group_id == group_id)
     ).first()
+
+def count_members(db: Session, group_id: str) -> int:
+    """グループの現在のメンバー数を返す"""
+    return db.query(models.GroupMember).filter(
+        models.GroupMember.group_id == group_id
+    ).count()
 
 # --- 作成・加入系 ---
 # === 【追加】申請処理ロジック ===
@@ -152,5 +158,13 @@ def remove_member(db: Session, group_id: str, target_user_id: str):
     db.delete(member)
     db.commit()
     return True
+
+def delete_group(db: Session, db_group: models.Group):
+    """
+    グループを削除する。
+    Modelのcascade設定により、tasksやgroup_membersも連鎖的に削除される。
+    """
+    db.delete(db_group)
+    db.commit()
 
 # 人がいなくなった団体は自動で削除するようにしたい(予定)

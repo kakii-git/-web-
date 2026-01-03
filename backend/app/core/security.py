@@ -1,7 +1,7 @@
 import bcrypt
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Any, Union
-from jose import jwt
+from jose import jwt, JWTError
 
 from .config import settings
 
@@ -48,3 +48,19 @@ def create_access_token(subject: Union[str, Any], expires_delta: Optional[timede
     # 暗号化
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
+
+def decode_access_token(token: str) -> dict | None:
+    """
+    トークンを検証・デコードし、ペイロードを返す。
+    無効な場合は None を返す（あるいは例外を投げても良い）。
+    """
+    try:
+        payload = jwt.decode(
+            token, 
+            settings.SECRET_KEY, 
+            algorithms=[settings.ALGORITHM]
+        )
+        return payload
+            
+    except JWTError:
+        raise None
