@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
+import logging
 
 # 依存関係 (プロジェクト構成に合わせて適宜調整してください)
 from app.core.database import get_db
@@ -10,6 +11,9 @@ from app.modules.user.models import User
 from app.modules.user import models as user_models
 
 from . import crud, schemas, models
+
+# ロガーの設定
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/groups",
@@ -238,20 +242,38 @@ def leave_or_remove_member(
         # 操作者が管理者であるかチェック
         check_group_admin_permission(current_user, group_id, db)
 
-    # 2. 脱退
-    crud.remove_member(db, group_id, target_user_id)
+    # # 2. 脱退
+    # crud.remove_member(db, group_id, target_user_id)
 
-    # 3. 残りのメンバー数を数える
-    remaining_count = crud.count_members(db, group_id)
+    try:
+        # メンバー削除 (crudを使わず直接操作してcommitを遅らせる)
+        member = db.query(models.GroupMember).filter(
+            models.GroupMember.group_id == group_id,
+            models.GroupMember.user_id == target_user_id
+        ).first()
 
-    # 4. 誰もいなくなったら (1人なら) グループを削除(解散)
-    if remaining_count == 0:
-        group = crud.get_group(db, group_id)
-        if group:
-            # delete_groupを呼べば、TaskなどもCascade設定で全部消えます
-            crud.delete_group(db, group)
-            print(f"Group {group_id} has been automatically deleted.")
+        if member:
+            db.delete(member)
+            db.flush()  # DBには送信するが、まだ確定しない
 
+        # 残りのメンバー数を数える
+        remaining_count = crud.count_members(db, group_id)
+
+        # 誰もいなくなったら (0人なら) グループを削除(解散)
+        if remaining_count == 0:
+            group = crud.get_group(db, group_id)
+            if group:
+                # # delete_groupを呼べば、TaskなどもCascade設定で全部消えます
+                # crud.delete_group(db, group)
+                db.delete(group)
+                logger.info(f"Group {group_id} has been automatically deleted.")
+        db.commit()
+
+    except Exception as e:
+        db.rollback() # エラーが起きたら元に戻す
+        logger.error(f"Error in leave_or_remove_member: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    
     return
 
 @router.delete("/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
