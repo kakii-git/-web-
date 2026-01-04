@@ -1,7 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from slack_sdk import WebClient
-from slack_sdk.errors import SlackApiError
 from app.core.config import settings
 from app.core.database import get_db
 from app.modules.group import models as group_models
@@ -13,8 +12,8 @@ router = APIRouter(
 
 @router.get("/slack/callback")
 def slack_callback(
-    code: str,
-    state: str,  # フロントエンドから送られた group_id
+    code: str = Query(..., description="Slackから返却された認証コード"),
+    state: str = Query(..., description="連携元のGroup ID"),
     db: Session = Depends(get_db)
 ):
     """
@@ -56,27 +55,7 @@ def slack_callback(
     db.commit()
 
     return {
-        "message": "Slack connection successful!", 
+        "message": "Slackとの連携に成功しました！", 
         "group": group.name, 
         "channel": incoming_webhook.get("channel")
     }
-
-def send_slack_message(token: str, channel_id: str, message: str):
-    """
-    グループごとのトークンとチャンネルIDを使ってメッセージ送信
-    """
-    if not token or not channel_id:
-        print("Slack token or channel_id is missing.")
-        return
-
-    client = WebClient(token=token) # ここで都度生成
-    
-    try:
-        client.chat_postMessage(
-            channel=channel_id,
-            text=message
-        )
-    except SlackApiError as e:
-        print(f"Error sending message: {e.response['error']}")
-
-# ... (notify_new_task なども引数に token, channel_id を受け取るように変更)
