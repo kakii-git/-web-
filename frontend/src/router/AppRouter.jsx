@@ -10,7 +10,7 @@ import SigninPage from '../pages/signin';
 import SignupPage from '../pages/signup';
 
 // ユーザー保護ページ
-import UserProfilePage from '../pages/user/[userId]/profile';
+import UserProfilePage from '../pages/user/UserProfile';
 
 // メイン機能
 import CalendarPage from '../pages/calendar';

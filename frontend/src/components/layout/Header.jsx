@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+// api.js の読み込みパス: components/layout から見て ../../lib/api
+import api from '../../lib/api';
 
 export const Header = () => {
   const [isGroupMenuOpen, setIsGroupMenuOpen] = useState(false);
@@ -16,8 +18,23 @@ export const Header = () => {
     navigate(`/group/${groupId}`);
   };
 
+  // ▼ 追加: ログアウト機能
+  const handleLogout = async () => {
+    if (window.confirm('ログアウトしてもよろしいですか？')) {
+      try {
+        // バックエンドにログアウト通知 (必要に応じて)
+        // await api.post('/logout'); 
+      } catch (error) {
+        console.error('Logout error:', error);
+      } finally {
+        // フロントエンド側でトークンを破棄してログイン画面へ
+        localStorage.removeItem('token');
+        navigate('/signin');
+      }
+    }
+  };
+
   return (
-    // Smart & Trust: 白背景に細いボーダー、影は控えめに
     <header className="h-16 bg-white border-b border-slate-200 sticky top-0 z-50">
       <div className="h-full px-6 max-w-7xl mx-auto flex items-center justify-between">
         
@@ -34,7 +51,6 @@ export const Header = () => {
           
           <nav className="hidden md:flex items-center gap-1 text-sm font-medium text-slate-600">
             <Link to="/calendar" className="px-3 py-2 rounded-md hover:bg-slate-50 hover:text-primary-600 transition-colors">マイカレンダー</Link>
-            <Link to="/tasks" className="px-3 py-2 rounded-md hover:bg-slate-50 hover:text-primary-600 transition-colors">タスク一覧</Link>
             
             {/* グループ切り替え */}
             <div className="relative">
@@ -83,8 +99,10 @@ export const Header = () => {
           </nav>
         </div>
 
-        {/* 右側：プロフィール */}
+        {/* 右側：プロフィール & ログアウト */}
         <div className="flex items-center gap-4">
+          
+          {/* ▼▼▼ 修正箇所: ルーターに合わせて /profile を追加 ▼▼▼ */}
           <Link 
             to="/user/me/profile" 
             className="text-sm font-medium text-slate-600 hover:text-primary-600 flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-all border border-transparent hover:border-slate-200"
@@ -92,8 +110,15 @@ export const Header = () => {
             <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
               U
             </div>
-            <span>Your Profile</span>
+            <span>Profile</span>
           </Link>
+
+          <button
+            onClick={handleLogout}
+            className="text-xs font-medium text-slate-400 hover:text-red-500 transition-colors px-2 py-1"
+          >
+            Log out
+          </button>
         </div>
       </div>
     </header>

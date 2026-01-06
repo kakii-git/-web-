@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api from '../lib/api'; // 作成したapi設定を読み込み
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -8,24 +9,71 @@ const SignupPage = () => {
     email: '',
     password: '',
   });
+  const [errorMsg, setErrorMsg] = useState(''); // エラー表示用
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Signup attempt:', formData);
-    // TODO: ここでAPI連携を行う
-    // 仮の成功としてカレンダーへ遷移
-    navigate('/calendar');
+    setErrorMsg('');
+
+    try {
+      // ------------------------------------------------
+      // 1. 新規登録を実行
+      // ------------------------------------------------
+      const signupPayload = {
+        user_name: formData.username,
+        email: formData.email,
+        password: formData.password
+      };
+
+      await api.post('/signup', signupPayload);
+      console.log('登録成功。自動ログインを試みます...');
+
+      // ------------------------------------------------
+      // 2. そのままログイン（トークン取得）を実行
+      // ------------------------------------------------
+      // ログインには x-www-form-urlencoded 形式が必要なので変換
+      const loginParams = new URLSearchParams();
+      loginParams.append('username', formData.email); // username欄にemailを入れる仕様
+      loginParams.append('password', formData.password);
+
+      const loginResponse = await api.post('/token', loginParams, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+
+      // ------------------------------------------------
+      // 3. トークン保存 & 画面遷移
+      // ------------------------------------------------
+      const { access_token } = loginResponse.data;
+      localStorage.setItem('token', access_token);
+      
+      console.log('自動ログイン成功！');
+      
+      // アラートは出さずに、スムーズにカレンダーへ移動させる
+      // (もしウェルカムメッセージを出したいなら、移動先のカレンダー画面で出すのが今風です)
+      navigate('/calendar');
+
+    } catch (error) {
+      console.error('Signup/Login error:', error);
+      
+      if (error.response && error.response.data && error.response.data.detail) {
+        const detail = error.response.data.detail;
+        setErrorMsg(typeof detail === 'string' ? detail : JSON.stringify(detail));
+      } else {
+        setErrorMsg('登録または自動ログインに失敗しました。');
+      }
+    }
   };
 
   return (
     <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          {/* ロゴ部分 */}
           <div className="w-12 h-12 bg-primary-600 text-white rounded-xl flex items-center justify-center text-2xl font-bold shadow-lg">
             G
           </div>
@@ -42,6 +90,14 @@ const SignupPage = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white/80 backdrop-blur-sm py-8 px-4 shadow sm:rounded-xl sm:px-10 border border-slate-200">
+          
+          {/* エラーメッセージ表示エリア */}
+          {errorMsg && (
+            <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-md border border-red-200">
+              {errorMsg}
+            </div>
+          )}
+
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* ユーザー名 */}
             <div>
