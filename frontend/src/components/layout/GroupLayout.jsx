@@ -8,19 +8,19 @@ export const GroupLayout = () => {
   const menuItems = [
     { label: '予定表', path: `/group/${groupId}` },
     { label: 'メンバー一覧', path: `/group/${groupId}/members` },
-    // ▼▼▼ ここを変更しました（より管理画面らしく） ▼▼▼
     { label: '参加リクエスト管理', path: `/group/${groupId}/join_requests` },
     { label: 'グループ情報', path: `/group/${groupId}/info` },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    // bg-gray-50 を削除しました
+    <div className="min-h-screen flex flex-col">
       <Header />
       <div className="flex flex-1 max-w-7xl mx-auto w-full">
         {/* 左サイドバー */}
-        <aside className="w-64 bg-white border-r border-gray-200 hidden md:block">
-          <div className="p-6">
-            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
+        <aside className="w-64 bg-white/80 backdrop-blur-sm border-r border-slate-200 hidden md:block">
+          <div className="p-6 sticky top-16">
+            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
               Group Menu
             </h2>
             <nav className="space-y-1">
@@ -32,8 +32,8 @@ export const GroupLayout = () => {
                   className={({ isActive }) =>
                     `flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                       isActive
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        ? 'bg-primary-50 text-primary-700'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                     }`
                   }
                 >
