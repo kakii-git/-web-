@@ -1,0 +1,44 @@
+/project-root
+├── frontend/
+    │
+    ├── .env                    # 環境変数 (API_URL=http://localhost:8000 等)
+    ├── package.json            # 依存ライブラリ管理 (React, FullCalendar, Tailwind等)
+    ├── tailwind.config.js      # デザイン設定 (テーマカラー: Indigo, フォント: Inter)
+    ├── .gitignore              # git除外設定
+    │
+    ├── public/                 # 静的ファイル
+    │   └── index.html          # HTMLテンプレート
+    │
+    ├── src/
+    │   ├── index.js            # エントリーポイント (Global CSS読み込み, Router起動)
+    │   │
+    │   ├── assets/             # 静的リソース
+    │   │   └── styles/
+    │   │       └── global.css  # 全体スタイル (ドット背景, FullCalendarのカスタム設定)
+    │   │
+    │   ├── components/         # 再利用可能なコンポーネント
+    │   │   └── layout/         # 共通レイアウト
+    │   │       ├── Header.jsx      # ヘッダー (グループ切替, プロフィール)
+    │   │       ├── MainLayout.jsx  # 個人画面用レイアウト
+    │   │       └── GroupLayout.jsx # グループ画面用レイアウト (サイドバー付)
+    │   │
+    │   ├── lib/                # 外部ライブラリ設定・ユーティリティ
+    │   │   └── axios.js        # API通信クライアント (BaseURL設定など)
+    │   │
+    │   ├── pages/              # 各ページ画面
+    │   │   ├── signin.jsx      # ログイン画面
+    │   │   ├── signup.jsx      # 新規登録画面
+    │   │   │
+    │   │   ├── calendar/       # 個人カレンダー機能
+    │   │   │   ├── index.jsx   # カレンダー本体 (FullCalendar)
+    │   │   │   └── EventModal.jsx # イベント詳細モーダル
+    │   │   │
+    │   │   └── group/          # グループ機能
+    │   │       ├── CreateEventModal.jsx # 新規タスク作成モーダル (管理者用)
+    │   │       └── [groupId]/  # グループ個別ページ (動的ルート)
+    │   │           └── index.jsx # グループカレンダー・ダッシュボード
+    │   │
+    │   └── router/             # ルーティング設定
+    │       └── AppRouter.jsx   # URLとページの紐付け定義
+    │
+    └── ...
