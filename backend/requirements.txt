@@ -2,6 +2,7 @@ alembic==1.17.2
 annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.12.0
+APScheduler==3.11.2
 bcrypt==5.0.0
 cffi==2.0.0
 click==8.3.1
@@ -30,13 +31,17 @@ python-jose==3.5.0
 python-multipart==0.0.21
 PyYAML==6.0.3
 rsa==4.9.1
+ruff==0.14.10
 six==1.17.0
+slack_sdk==3.39.0
 sqlacodegen==3.2.0
 SQLAlchemy==2.0.45
 starlette==0.50.0
 typeguard==4.4.4
 typing-inspection==0.4.2
 typing_extensions==4.15.0
+tzdata==2025.3
+tzlocal==5.3.1
 uvicorn==0.40.0
 watchfiles==1.1.1
 websockets==15.0.1

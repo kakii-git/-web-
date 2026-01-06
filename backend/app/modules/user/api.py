@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.core import database, security
+from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.modules.user import models as user_models
 from . import crud, schemas, models
@@ -21,7 +22,7 @@ def signup(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
     # メールアドレスの重複チェック
     # (同姓同名は許可するため、名前でのチェックは行いません)
     if crud.get_user_by_email(db, email=user.email):
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="そのアドレスは無効です。")
     
     # DBに保存
     return crud.create_user(db=db, user=user)
@@ -42,14 +43,21 @@ def login_for_access_token(
     user = crud.get_user_by_email(db, email=form_data.username)
     
     # 2. ユーザーが存在しない、またはパスワードが一致しない場合のエラー処理
-    if not user or not security.verify_password(form_data.password, user.password_hash):
+    if not user or not security.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="入力された情報が不正です。",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # 3. 認証OKならトークンを発行 (subには一意なemailを入れるのが一般的)
+    # 3. 凍結アカウントチェック
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="アカウントが凍結されています。"
+        )
+    
+    # 4. 認証OKならトークンを発行 (subには一意なemailを入れるのが一般的)
     access_token = security.create_access_token(subject=user.email)
     return {
         "access_token": access_token, 
@@ -86,26 +94,69 @@ def logout(current_user: user_models.User = Depends(get_current_user)):
     
     return {"message": "ログアウトしました。ブラウザのトークンを破棄してください。"}
 
-# 将来的に、アカウントの凍結を実装するときに必要
-# @router.put("/{user_id}/freeze")
-# def freeze_user(
-#     user_id: str,
-#     freeze: bool = True,  # Trueで凍結、Falseで解除
-#     db: Session = Depends(get_db),
-#     current_user: User = Depends(get_current_user)
-# ):
-#     # 1. 操作者が「システム管理者」かチェック
-#     if not current_user.is_superuser:
-#         raise HTTPException(status_code=403, detail="権限がありません")
+@router.delete("/profile", status_code=status.HTTP_204_NO_CONTENT)
+def delete_my_account(
+    # ログイン中のユーザー情報を自動取得（トークンが必要になります）
+    current_user: models.User = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+    """
+    ログイン中のユーザー自身のアカウントを削除します。
+    """
+    # crudの削除関数を呼び出す
+    # success = crud.delete_user(db, user_id=current_user.user_id)
+    success = crud.delete_user(db, user_id=current_user.user_id)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりませんでした。")
+    
+    # 204 No Content は「成功したけど返すデータはない」という意味
+    return
 
-#     # 2. 対象ユーザーを取得
-#     target_user = db.query(User).filter(User.user_id == user_id).first()
-#     if not target_user:
-#         raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+@router.put("/{user_id}/status", response_model=schemas.UserResponse)
+def change_user_status(
+    user_id: str,
+    status_in: schemas.FreezeRequest,
+    db: Session = Depends(get_db),
+    current_user: user_models.User = Depends(get_current_user)
+):
+    """
+    【Superuser専用】
+    指定したユーザーのアカウントを凍結(False)または解除(True)する。
+    """
+    # 権限チェック: 実行者がSuperuserでなければ拒否
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="この操作を行う権限がありません。"
+        )
 
-#     # 3. 凍結フラグを更新 (is_active を反転させる)
-#     target_user.is_active = not freeze 
-#     db.commit()
+    # 自分自身を凍結してしまうのを防ぐ（誤操作防止）
+    if current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="super権限者自身を凍結することはできません。"
+        )
 
-#     status_msg = "凍結しました" if freeze else "凍結解除しました"
-#     return {"message": f"ユーザー {target_user.email} を{status_msg}"}
+    updated_user = crud.toggle_user_active_status(db, user_id, status_in.is_active)
+    
+    if not updated_user:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりませんでした。")
+        
+    return updated_user
+
+@router.get("/me", response_model=schemas.UserResponse)
+def read_users_me(current_user: user_models.User = Depends(get_current_user)):
+    """ログイン中の自分の情報を取得"""
+    return current_user
+
+# --- ★以下を追加: 所属グループ一覧取得API ---
+@router.get("/me/groups", response_model=List[schemas.UserGroupDetail])
+def read_my_groups(
+    current_user: user_models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    ログイン中のユーザーが所属している（または招待されている）グループ一覧を取得します。
+    """
+    return crud.get_user_joined_groups(db, user_id=current_user.user_id)

@@ -16,17 +16,32 @@ class Group(Base):
     # UUIDを主キーとする
     group_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
     
-    # 修正: name -> group_name
+    # グループ名
     group_name = Column(String(100), nullable=False, index=True, comment="グループ名")
     
-    # 修正: description は削除しました
-    
+    # 各グループごとに個別のBotトークンとチャンネルIDを持ちます
+    slack_bot_token = Column(String(255), nullable=True) # そのグループ専用のトークン
+    slack_channel_id = Column(String(255), nullable=True) # 通知先のチャンネルID
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # リレーション: 中間テーブル(GroupMember)を通じてUserと関連付け
-    user_groups = relationship("GroupMember", back_populates="group", cascade="all, delete-orphan")
-
+    group_members = relationship(
+        "GroupMember", 
+        back_populates="group", 
+        cascade="all, delete-orphan"
+    )
+    tasks = relationship(
+        "app.modules.task.models.Task", 
+        back_populates="group", 
+        cascade="all, delete-orphan" # グループ削除時にタスクも全消去
+    )
+    task_templates = relationship(
+        "app.modules.task.models.TaskTemplate",
+        back_populates="group",
+        cascade="all, delete-orphan" 
+    )
 
 class GroupMember(Base):
     """
@@ -35,13 +50,13 @@ class GroupMember(Base):
     - どのグループに(group_id)
     - どんな状態で(accepted, is_representative) 所属しているか
     """
-    __tablename__ = "user_groups"
+    __tablename__ = "group_members"
 
     # 修正: id -> user_group_id
     user_group_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     
-    user_id = Column(String(36), ForeignKey("users.user_id"), nullable=False)
-    group_id = Column(String(36), ForeignKey("groups.group_id"), nullable=False)
+    user_id = Column(String(36), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    group_id = Column(String(36), ForeignKey("groups.group_id", ondelete="CASCADE"), nullable=False)
 
     # 権限・状態フラグ
     is_representative = Column(Boolean, default=False, comment="代表者フラグ (True=代表/管理者)")
@@ -52,10 +67,16 @@ class GroupMember(Base):
 
     # リレーション設定
     # Userモデル側にも `groups = relationship("GroupMember", back_populates="user")` がある想定
-    user = relationship("app.modules.user.models.User", back_populates="groups")
-    group = relationship("Group", back_populates="user_groups")
+    users = relationship(
+        "app.modules.user.models.User", 
+        back_populates="group_members"
+    )
+    group = relationship(
+        "Group", 
+        back_populates="group_members"
+    )
 
-    # 修正: user_idとgroup_idの組み合わせはユニークである必要がある
+    # user_idとgroup_idの組み合わせはユニークである必要がある
     __table_args__ = (
         UniqueConstraint('user_id', 'group_id', name='unique_user_group_membership'),
     )

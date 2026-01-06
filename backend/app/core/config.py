@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
@@ -25,6 +24,10 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "CHANGE_THIS_TO_A_VERY_SECURE_SECRET_KEY"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60  # トークンの有効期限（分）
+
+    SLACK_CLIENT_ID: str = "CHANGE_ME"
+    SLACK_CLIENT_SECRET: str = "CHANGE_ME"
+    SLACK_REDIRECT_URI: str = "CHANGE_ME"
 
     @property
     def DATABASE_URL(self) -> str:

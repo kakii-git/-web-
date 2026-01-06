@@ -42,3 +42,20 @@ class UserResponse(UserBase):
     class Config:
         # SQLAlchemyのモデル（DBデータ）を、そのままこのPydanticモデルに変換可能にする設定
         from_attributes = True
+
+# --- 所属グループ一覧表示用スキーマ ---
+class UserGroupDetail(BaseModel):
+    group_id: str
+    group_name: str
+    is_representative: bool # 自分が管理者(代表)かどうか
+    accepted: bool          # 参加承認済みかどうか
+    
+    is_superuser: bool = False # フロントエンド制御用 (例: 管理画面へのリンクを表示するなど)
+    is_active: bool = True     # クライアント側で「凍結中」アイコンを出すなどに使用   
+
+    class Config:
+        from_attributes = True
+
+# --- 凍結/解凍操作用スキーマ ---
+class FreezeRequest(BaseModel):
+    is_active: bool # True=解除, False=凍結

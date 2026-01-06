@@ -1,21 +1,23 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# 1. データベース設定とモデルのインポート
-# create_allを実行するために、Baseとengine、そして「各モデル」をインポートする必要があります
-from app.core.database import engine, Base
-from app.modules.user import models as user_models
-from app.modules.group import models as group_models
+# スケジューラ―を追加
+from app.core.scheduler import start_scheduler
 
-# 2. ルーター（APIエンドポイントの集合）のインポート
+# ルーター（APIエンドポイントの集合）のインポート
 from app.modules.user.api import router as user_router
 from app.modules.group.api import router as group_router
+from app.modules.task.api import router as group_task_router
+from app.modules.task.api import me_router as my_task_router
+from app.modules.chat.api import router as chat_router
 
-# --- データベースのテーブル作成 ---
-# アプリ起動時に、まだ存在しないテーブルを自動的に作成します。
-# ※ 本番環境ではAlembicなどのマイグレーションツールを使うのが一般的ですが、
-#    開発段階ではこれで十分です。
-Base.metadata.create_all(bind=engine)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 起動時
+    start_scheduler()
+    yield
+    # 終了時 (何もしない)
 
 # --- FastAPIアプリの初期化 ---
 app = FastAPI(
@@ -44,6 +46,9 @@ app.add_middleware(
 # 作成したモジュールごとのルーターをここでメインアプリに登録します。
 app.include_router(user_router)
 app.include_router(group_router)
+app.include_router(group_task_router)
+app.include_router(my_task_router)
+app.include_router(chat_router)
 
 # --- ヘルスチェック用エンドポイント ---
 # サーバーが動いているか確認するための簡易URL (http://localhost:8000/)
