@@ -58,6 +58,9 @@ export const Header = () => {
             <nav className="hidden md:flex items-center gap-1 text-sm font-medium text-slate-600">
               <Link to="/calendar" className="px-3 py-2 rounded-md hover:bg-slate-50 hover:text-primary-600 transition-colors">マイカレンダー</Link>
               
+              {/* ▼▼▼ 追加: 自分のタスクへのリンク ▼▼▼ */}
+              <Link to="/tasks" className="px-3 py-2 rounded-md hover:bg-slate-50 hover:text-primary-600 transition-colors">自分のタスク</Link>
+
               {/* グループメニュー */}
               <div className="relative">
                 <button 

@@ -93,12 +93,14 @@ const CreateEventModal = ({
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // [修正] endTimeが空文字の場合は無理にTをつけて結合せず、nullを渡す
+    // endTimeが空文字の場合は無理にTをつけて結合せず、nullを渡す
     const startStr = formData.startTime ? `${formData.date}T${formData.startTime}` : null;
     const endStr = formData.endTime ? `${formData.date}T${formData.endTime}` : null;
 
     const submitPayload = {
       title: formData.title,
+      // ▼▼▼ 修正: 親コンポーネントが日付を必要とするため date を追加 ▼▼▼
+      date: formData.date,
       start: startStr,
       end: endStr,
       location: formData.location,
@@ -106,12 +108,6 @@ const CreateEventModal = ({
     };
 
     onSubmit(submitPayload);
-    // 閉じるのは親側の制御に任せるか、ここで閉じるか。現状の実装ではonSubmit内でAPIコール後に閉じる想定ではない場合もあるが、
-    // index.jsxではAPI成功後に閉じています。
-    // エラーハンドリングのために、ここでは閉じずに親に任せるのが一般的ですが、
-    // 元のコードに合わせて onCloseは呼ばないでおきます（index.jsx側で閉じています）。
-    // もし親側で閉じる処理がないなら onClose() が必要です。
-    // 今回の index.jsx では handleFormSubmit 成功時に setIsCreateModalOpen(false) しているのでOK。
   };
 
   if (!isOpen) return null;
