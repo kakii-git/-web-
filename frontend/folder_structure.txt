@@ -1,0 +1,56 @@
+frontend/
+├── .env                      # API_URL等の環境変数
+├── package.json              # 依存パッケージ管理
+├── tailwind.config.js        # Tailwind CSS設定
+└── src/
+    ├── index.js              # エントリーポイント
+    ├── App.js                # ルートコンポーネント (Global Context等はここ)
+    │
+    ├── assets/
+    │   └── styles/
+    │       └── global.css    # グローバルスタイル
+    │
+    ├── components/           # 共通コンポーネント
+    │   ├── layout/
+    │   │   ├── Header.jsx        # 共通ヘッダー
+    │   │   ├── MainLayout.jsx    # メインレイアウト
+    │   │   └── GroupLayout.jsx   # グループレイアウト
+    │   │
+    │   └── PrivateRoute.jsx  # 認証ガードコンポーネント
+    │
+    ├── lib/
+    │   └── api.js            # APIクライアント (Axios wrapper)
+    │
+    ├── router/
+    │   └── AppRouter.jsx     # ルーティング定義 (react-router-dom)
+    │
+    ├── pages/                # ページコンポーネント
+    │   ├── signin.jsx        # ログイン画面
+    │   ├── signup.jsx        # 新規登録画面
+    │   │
+    │   ├── admin/            # 管理者用ページ
+    │   │   ├── dashboard/
+    │   │   └── members/
+    │   │
+    │   ├── calendar/         # カレンダーページ
+    │   │   ├── index.jsx
+    │   │   └── EventModal.jsx
+    │   │
+    │   ├── group/            # グループ関連ページ
+    │   │   ├── CreateEventModal.jsx
+    │   │   ├── new/              # グループ作成ページ (追加)
+    │   │   ├── join/             # グループ参加ページ (追加)
+    │   │   └── [groupId]/    # 個別グループページ
+    │   │       ├── info/
+    │   │       └── members/
+    │   │
+    │   ├── instagram/        # Instagram生成ページ
+    │   │   └── index.jsx
+    │   │
+    │   ├── tasks/            # タスク関連ページ
+    │   │   ├── index.jsx
+    │   │   ├── new/
+    │   │   └── [taskId]/
+    │   │
+    │   └── user/             # ユーザー関連ページ
+    │       └── UserProfile.jsx

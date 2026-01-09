@@ -1,0 +1,1 @@
+import { useParams } from 'react-router-dom'; export default function TaskDetailPage() { const { taskId } = useParams(); return <div className='p-4'><h1>タスク詳細・編集 (ID: {taskId})</h1></div>; }

@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-800 font-sans antialiased;
+    background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+    background-size: 24px 24px;
+    background-attachment: fixed;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-slate-900 font-bold tracking-tight;
+  }
+}
+
+/* --- FullCalendar Custom Styles --- */
+
+.fc {
+  font-family: 'Inter', sans-serif;
+}
+
+/* ヘッダーのタイトル */
+.fc .fc-toolbar-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+/* ボタンのカスタマイズ */
+.fc .fc-button-primary {
+  background-color: white;
+  border-color: #cbd5e1;
+  color: #475569;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  transition: all 0.2s;
+}
+
+.fc .fc-button-primary:hover {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+/* アクティブなボタン */
+.fc .fc-button-primary:not(:disabled).fc-button-active {
+  background-color: #eef2ff;
+  border-color: #6366f1;
+  color: #4f46e5;
+}
+
+.fc .fc-button-primary:not(:disabled):active,
+.fc .fc-button-primary:not(:disabled):focus {
+  background-color: #eef2ff;
+  border-color: #6366f1;
+  color: #4f46e5;
+  box-shadow: none;
+}
+
+/* ▼▼▼ 今日の日付のデザイン変更（赤色アクセント版） ▼▼▼ */
+
+/* 今日のマス全体: ほんのり赤い背景色 */
+.fc .fc-day-today {
+  background-color: #fff1f2 !important; /* Rose-50 */
+  transition: background-color 0.2s;
+}
+
+/* 今日のマス: 上部に鮮やかな赤のライン */
+.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-frame {
+  border-top: 4px solid #f43f5e; /* Rose-500 */
+}
+
+/* 日付の数字: 濃い赤色で太字 */
+.fc .fc-day-today .fc-daygrid-day-number {
+  color: #e11d48; /* Rose-600 */
+  font-weight: 800; /* 極太字 */
+  font-size: 1.1em;
+  background-color: transparent;
+  width: auto;
+  height: auto;
+}
+/* ▲▲▲ 変更ここまで ▲▲▲ */
+
+/* イベント */
+.fc-event {
+  border: none;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  cursor: pointer;
+}
