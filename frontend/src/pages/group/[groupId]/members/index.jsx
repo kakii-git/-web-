@@ -10,23 +10,26 @@ const GroupMembersPage = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // ▼ 追加: 管理者権限を管理するState
   const [isAdmin, setIsAdmin] = useState(false);
+  // ▼ 追加: 表示制御のために自分のユーザー情報を保持する
+  const [currentUser, setCurrentUser] = useState(null);
 
   // データ取得
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. まず「自分の情報」と「確定済みメンバー」を取得 (これらは一般人でも失敗しないはず)
       const [meRes, membersRes] = await Promise.all([
         api.get('/me'),
         api.get(`/groups/${groupId}/members`, { params: { accepted_only: true } })
       ]);
 
       const myUser = meRes.data;
+      // ▼ 追加: ステートに保存
+      setCurrentUser(myUser);
+
       const membersData = membersRes.data;
 
-      // ▼ 管理者判定
+      // 管理者判定
       const myMembership = membersData.find(m => {
         if (m.user_id === myUser.user_id) return true;
         if (m.user && m.user.user_id === myUser.user_id) return true;
@@ -36,8 +39,7 @@ const GroupMembersPage = () => {
       setIsAdmin(isRepresentative);
       setMembers(membersData);
 
-      // 2. 承認待ちリスト取得 (管理者の場合のみ、または失敗しても無視する形で実行)
-      // 一般メンバーが叩くと 403 Forbidden になる可能性があるため、分離して try-catch する
+      // 承認待ちリスト取得 (管理者の場合のみ)
       let pendingRequests = [];
       if (isRepresentative) {
         try {
@@ -45,7 +47,6 @@ const GroupMembersPage = () => {
           pendingRequests = requestsRes.data.filter(m => !m.accepted);
         } catch (reqError) {
           console.warn("Requests fetch failed (likely not admin):", reqError);
-          // 失敗しても空配列のまま進む
         }
       }
       setRequests(pendingRequests);
@@ -72,7 +73,7 @@ const GroupMembersPage = () => {
         action: action
       });
       alert('処理が完了しました');
-      fetchData(); // リロード
+      fetchData(); 
     } catch (error) {
       console.error("Action failed:", error);
       alert('処理に失敗しました');
@@ -93,7 +94,6 @@ const GroupMembersPage = () => {
         >
           メンバー ({members.length})
         </button>
-        {/* ▼ 管理者のみ承認待ちタブを表示（任意: 非管理者には見せない場合） */}
         {isAdmin && (
           <button
             onClick={() => setActiveTab('requests')}
@@ -114,7 +114,6 @@ const GroupMembersPage = () => {
           <div className="p-8 text-center text-slate-400">読み込み中...</div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {/* リスト表示の切り替え */}
             {(activeTab === 'members' ? members : requests).length === 0 ? (
               <div className="p-8 text-center text-slate-500 text-sm">該当するユーザーはいません</div>
             ) : (
@@ -131,7 +130,10 @@ const GroupMembersPage = () => {
                           <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] rounded border border-indigo-200">管理者</span>
                         )}
                       </p>
-                      <p className="text-xs text-slate-500">{member.email}</p>
+                      {/* ▼▼▼ 修正: 管理者または本人以外にはメールアドレスを隠す ▼▼▼ */}
+                      {(isAdmin || (currentUser && currentUser.user_id === member.user_id)) && (
+                        <p className="text-xs text-slate-500">{member.email}</p>
+                      )}
                     </div>
                   </div>
 
