@@ -213,7 +213,7 @@ def get_my_global_tasks(db: Session, user_id: str, year: int, month: int):
     """
     return db.query(
             models.Task.task_id,
-            group_models.Group.name.label("group_name"), # Groupテーブルの名前を取得
+            group_models.Group.group_name.label("group_name"), # Groupテーブルの名前を取得
             models.Task.title,
             models.Task.date,
             models.Task.time_span_begin,
