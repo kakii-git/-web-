@@ -71,7 +71,6 @@ const GroupCalendarPage = () => {
           description: task.description,
           task_id: task.task_id,
           task_user_relations: task.task_user_relations || [],
-          // [修正] ステータス情報を追加
           status: task.status,
           is_task: task.is_task
         }
@@ -141,7 +140,6 @@ const GroupCalendarPage = () => {
       endTime: endStr,
       location: extendedProps.location,
       description: extendedProps.description,
-      // [修正] 既存のステータスと種別を引き継ぐ
       status: extendedProps.status,
       is_task: extendedProps.is_task
     });
@@ -165,18 +163,13 @@ const GroupCalendarPage = () => {
 
     try {
       // 1. 新しい日程情報の抽出
-      // FullCalendarのイベントオブジェクトから日時を取得
       const { start, end, allDay } = info.event;
       
-      // ISO文字列生成 (YYYY-MM-DDTHH:mm:ss)
       const newStartISO = start ? start.toISOString() : null;
       const newEndISO = end ? end.toISOString() : null;
-      
-      // YYYY-MM-DD形式
       const newDateStr = start ? start.toISOString().split('T')[0] : null;
 
       // 2. 既存データの引継ぎ
-      // PUTリクエストなので、変更しないフィールドも全て送信しないと消える可能性がある
       const props = info.event.extendedProps;
       
       const payload = {
@@ -191,26 +184,26 @@ const GroupCalendarPage = () => {
         // 日時情報の構築
         time_span_begin: null,
         time_span_end: null,
-        date: undefined
+        date: null
       };
 
       // 3. ロジック分岐: 終日(AllDay)か、時間指定か
+      // 【修正】D&Dは常に「更新(PUT)」なので、時間指定時はdateを送らない
       if (allDay) {
-        // --- 終日スロットへドロップした場合 ---
-        // 時間情報はNullにし、dateを設定する
+        // --- 終日スロットへドロップ ---
+        // 日付のみ設定
         payload.date = newDateStr;
         payload.time_span_begin = null;
         payload.time_span_end = null;
       } else {
-        // --- 時間スロットへドロップした場合 ---
-        // dateをundefined(送信しない)にし、時間を設定する
-        // ※バックエンドの仕様に合わせて undefined を使う
-        payload.date = undefined;
+        // --- 時間スロットへドロップ ---
+        // dateをundefined(送信しない)にし、バックエンドの既存値を維持させる
+        payload.date = undefined; 
         payload.time_span_begin = newStartISO;
         payload.time_span_end = newEndISO;
       }
       
-      // undefinedのキーを削除（念のため）
+      // undefinedのキーを削除（これでdateキーが消える）
       Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
 
       console.log("Drop Update Payload:", payload);
@@ -218,21 +211,20 @@ const GroupCalendarPage = () => {
       // 4. API送信
       await api.put(`/groups/${groupId}/tasks/${info.event.id}`, payload);
       
-      // 成功したら見た目はFullCalendarが自動更新済みなのでそのままでOK
-      // ただし念のため裏で再取得しても良い
+      // 成功時はFullCalendarの表示が既に変わっているのでリロード必須ではないが、
+      // 念のため整合性を保つなら再取得しても良い
       // fetchTasks(); 
 
     } catch (error) {
       console.error("Update failed:", error);
       
-      // エラー詳細の表示
       let errorMsg = "更新に失敗しました";
       if (error.response?.data?.detail) {
         errorMsg += `\n${JSON.stringify(error.response.data.detail)}`;
       }
       alert(errorMsg);
       
-      // 失敗した場合はカレンダー上の表示を元に戻す
+      // 失敗した場合は元に戻す
       info.revert();
     }
   };
@@ -260,7 +252,7 @@ const GroupCalendarPage = () => {
   // フォーム送信 (新規作成 or 更新)
   const handleFormSubmit = async (formData) => {
     try {
-      // 1. 時間文字列の整形 (ISO 8601形式: YYYY-MM-DDTHH:mm:ss)
+      // 1. 時間文字列の整形
       const startTimeISO = formData.start && formData.start.includes('T') 
         ? (formData.start.length === 16 ? `${formData.start}:00` : formData.start)
         : null;
@@ -276,40 +268,41 @@ const GroupCalendarPage = () => {
         description: formData.description || "",
         time_span_begin: startTimeISO,
         time_span_end: endTimeISO,
-        
-        // 既存のステータスと種別を維持 (これらがないと編集で未着手に戻ってしまうため)
         is_task: editTargetData ? editTargetData.is_task : true,
         status: editTargetData ? editTargetData.status : "未着手"
       };
 
-      // 【重要】日付(date)フィールドの制御
-      if (!startTimeISO) {
-         // 時間指定がない(終日)タスクの場合のみ、dateを送信する
-         payload.date = formData.date;
+      // 【修正】新規作成(POST)か更新(PUT)かでdateの扱いを変える
+      const isUpdate = !!editTargetData;
+
+      if (isUpdate) {
+        // --- 更新モード (PUT) ---
+        if (startTimeISO) {
+           // 時間指定あり: 門番(Validation)対策で date を送らない
+           payload.date = undefined;
+        } else {
+           // 終日: date を送る
+           payload.date = formData.date;
+        }
       } else {
-         // 時間指定がある場合は、dateフィールド自体を送信しない(undefined)。
-         // これにより、バックエンドはdateの更新をスキップし、
-         // DBのNot Null制約違反(null送信時)と、バリデーションエラー(値送信時)の両方を回避する。
-         payload.date = undefined; 
+        // --- 新規作成モード (POST) ---
+        // 新規時は常にdateが必要 (Field required対策)
+        if (startTimeISO) {
+           payload.date = startTimeISO.split('T')[0];
+        } else {
+           payload.date = formData.date;
+        }
       }
       
-      // undefinedのキーを削除（JSON化の際に消えるが念のため）
+      // undefinedのキーを削除
       Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
 
       console.log("Sending payload:", payload);
 
       // 3. API送信
-      if (editTargetData) {
-        // 更新 (PUT)
+      if (isUpdate) {
         await api.put(`/groups/${groupId}/tasks/${editTargetData.id}`, payload);
       } else {
-        // 新規作成 (POST)
-        // 新規作成時はdate必須の可能性があるため、startTimeISOがあってもdateを入れる必要があるかもしれないが
-        // 今回のバグは「編集(PUT)」なので、まずは編集を成功させるロジックとしています。
-        // もし新規作成でエラーが出る場合は、POST時のみ payload.date = formData.date を強制します。
-        if (!editTargetData && !payload.date) {
-             payload.date = formData.date;
-        }
         await api.post(`/groups/${groupId}/tasks/`, payload);
       }
 
@@ -321,7 +314,6 @@ const GroupCalendarPage = () => {
     } catch (error) {
       console.error("Task operation failed:", error);
       
-      // エラー情報の表示
       let errorMsg = "処理に失敗しました";
       const debugInfo = {
         status: error.response?.status,
