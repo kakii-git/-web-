@@ -1,6 +1,6 @@
 // frontend/src/pages/tasks/index.jsx
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+// import { Link } from 'react-router-dom'; // リンクを使わないので削除
 import api from '../../lib/api';
 
 export default function TasksListPage() {
@@ -90,14 +90,10 @@ export default function TasksListPage() {
         <div className="bg-white shadow rounded-lg overflow-hidden">
           <ul className="divide-y divide-gray-200">
             {tasks.map((task) => (
-              <li key={task.task_id} className="hover:bg-gray-50">
-                {/* 詳細ページへのリンク
-                  注: グローバルAPIのレスポンスには group_id が含まれていないため、
-                  詳細ページが group_id を必要とする場合はリンク先を調整する必要があります。
-                  ここでは一旦 /tasks/:taskId としていますが、
-                  /groups/:groupId/tasks/:taskId が正しいルートである可能性が高いです。
-                */}
-                <Link to={`/tasks/${task.task_id}`} className="block p-4">
+              /* hoverエフェクトを削除し、単なるリスト表示に変更 */
+              <li key={task.task_id} className="bg-white">
+                {/* Linkタグをdivに変更して遷移を無効化 */}
+                <div className="block p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-start gap-4">
                       {/* 日付・時間 */}
@@ -126,11 +122,9 @@ export default function TasksListPage() {
                       </div>
                     </div>
 
-                    <div className="text-gray-400">
-                      &gt;
-                    </div>
+                    {/* 右側の矢印(>)アイコンは遷移を示唆するため削除しました */}
                   </div>
-                </Link>
+                </div>
               </li>
             ))}
           </ul>
