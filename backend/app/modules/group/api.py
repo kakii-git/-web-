@@ -175,7 +175,7 @@ def handle_join_request(
     return {"message": result_message, "target_user": target_user.email}
 
 
-@router.put("/{group_id}/members/{target_user_id}", response_model=schemas.GroupMemberResponse)
+@router.put("/{group_id}/members/{target_identifier}", response_model=schemas.GroupMemberResponse)
 def manage_member(
     group_id: str,
     target_identifier: str,
@@ -214,7 +214,7 @@ def manage_member(
         joined_at=updated_member.joined_at
     )
 
-@router.delete("/{group_id}/members/{target_user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{group_id}/members/{target_identifier}", status_code=status.HTTP_204_NO_CONTENT)
 def leave_or_remove_member(
     group_id: str,
     target_identifier: str,
