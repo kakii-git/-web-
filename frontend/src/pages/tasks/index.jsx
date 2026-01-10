@@ -15,25 +15,25 @@ export default function TasksListPage() {
   const month = currentDate.getMonth() + 1; // 0-indexed -> 1-12
 
   useEffect(() => {
+    // コンパイル時に警告が出たのでfetchTasksをuseEffectの中に入れました
+    const fetchTasks = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        // グループ横断の自分用タスクを取得 (GET /my-tasks)
+        const response = await api.get('/my-tasks', {
+          params: { year, month }
+        });
+        setTasks(response.data);
+      } catch (err) {
+        console.error('タスク取得エラー:', err);
+        setError('タスクの取得に失敗しました。');
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchTasks();
   }, [year, month]);
-
-  const fetchTasks = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      // グループ横断の自分用タスクを取得 (GET /my-tasks)
-      const response = await api.get('/my-tasks', {
-        params: { year, month }
-      });
-      setTasks(response.data);
-    } catch (err) {
-      console.error('タスク取得エラー:', err);
-      setError('タスクの取得に失敗しました。');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handlePrevMonth = () => {
     setCurrentDate(new Date(year, month - 2, 1)); // 前月へ
