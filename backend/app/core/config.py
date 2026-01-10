@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # ※本番環境では必ず強力なランダム文字列に変更してください (openssl rand -hex 32 等で生成)
     SECRET_KEY: str = "CHANGE_THIS_TO_A_VERY_SECURE_SECRET_KEY"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60  # トークンの有効期限（分）
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 43200  # トークンの有効期限（分）| 43200分 = 1ヶ月
 
     SLACK_CLIENT_ID: str = "CHANGE_ME"
     SLACK_CLIENT_SECRET: str = "CHANGE_ME"
