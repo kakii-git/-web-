@@ -1,6 +1,6 @@
 from pydantic import BaseModel, field_validator, field_serializer
 from typing import Optional, List
-from datetime import datetime, date, timezone, timedelta
+from datetime import datetime as _datetime, date as _date, timezone, timedelta
 from enum import Enum
 
 from app.modules.user.schemas import UserResponse
@@ -44,9 +44,9 @@ class MyReactionUpdate(BaseModel):
 
 class TaskBase(BaseModel):
     title: str
-    date: date
-    time_span_begin: Optional[datetime] = None
-    time_span_end: Optional[datetime] = None
+    date: _date
+    time_span_begin: Optional[_datetime] = None
+    time_span_end: Optional[_datetime] = None
     location: Optional[str] = None
     description: Optional[str] = None
     is_task: bool = False
@@ -54,7 +54,7 @@ class TaskBase(BaseModel):
 
     @field_validator('time_span_begin', 'time_span_end')
     @classmethod
-    def force_jst(cls, v: datetime):
+    def force_jst(cls, v: _datetime):
         if v is None:
             return None
         if v.tzinfo is None:
@@ -66,9 +66,9 @@ class TaskCreate(TaskBase):
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
-    date: Optional[date] = None
-    time_span_begin: Optional[datetime] = None
-    time_span_end: Optional[datetime] = None
+    date: Optional[_date] = None
+    time_span_begin: Optional[_datetime] = None
+    time_span_end: Optional[_datetime] = None
     location: Optional[str] = None
     description: Optional[str] = None
     is_task: Optional[bool] = None
@@ -76,7 +76,7 @@ class TaskUpdate(BaseModel):
 
     @field_validator('time_span_begin', 'time_span_end')
     @classmethod
-    def force_jst(cls, v: datetime):
+    def force_jst(cls, v: _datetime):
         if v is None:
             return None
         if v.tzinfo is None:
@@ -86,8 +86,8 @@ class TaskUpdate(BaseModel):
 class TaskResponse(TaskBase):
     task_id: str
     group_id: str
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    created_at: _datetime
+    updated_at: Optional[_datetime] = None
     
     # リレーション情報（担当者や参加者）
     task_user_relations: List[TaskUserRelationResponse] = []
@@ -95,7 +95,7 @@ class TaskResponse(TaskBase):
     class Config:
         from_attributes = True
     @field_serializer('time_span_begin', 'time_span_end')
-    def serialize_dt(self, dt: datetime | None, _info):
+    def serialize_dt(self, dt: _datetime | None, _info):
         """
         レスポンスをJSONにする直前に呼ばれます。
         UTCの時間を JST (+09:00) に変換して返します。
@@ -120,7 +120,7 @@ class TaskTemplateCreate(TaskTemplateBase):
 class TaskTemplateResponse(TaskTemplateBase):
     template_id: str
     group_id: str
-    created_at: datetime
+    created_at: _datetime
 
     class Config:
         from_attributes = True
@@ -131,9 +131,9 @@ class CalendarTaskResponse(BaseModel):
     """月表示カレンダー用の軽量データ"""
     task_id: str
     title: str
-    date: date
-    time_span_begin: Optional[datetime] = None
-    time_span_end: Optional[datetime] = None
+    date: _date
+    time_span_begin: Optional[_datetime] = None
+    time_span_end: Optional[_datetime] = None
     location: Optional[str] = None
     
     # 担当者情報などの重いデータは含めない
@@ -142,7 +142,7 @@ class CalendarTaskResponse(BaseModel):
         from_attributes = True
 
     @field_serializer('time_span_begin', 'time_span_end')
-    def serialize_dt(self, dt: datetime | None, _info):
+    def serialize_dt(self, dt: _datetime | None, _info):
         """
         レスポンスをJSONにする直前に呼ばれます。
         UTCの時間を JST (+09:00) に変換して返します。
@@ -158,16 +158,16 @@ class GlobalCalendarTaskResponse(BaseModel):
     task_id: str
     group_name: str  # グループ名を追加
     title: str
-    date: date
-    time_span_begin: Optional[datetime] = None
-    time_span_end: Optional[datetime] = None
+    date: _date
+    time_span_begin: Optional[_datetime] = None
+    time_span_end: Optional[_datetime] = None
     location: Optional[str] = None
 
     class Config:
         from_attributes = True
 
     @field_serializer('time_span_begin', 'time_span_end')
-    def serialize_dt(self, dt: datetime | None, _info):
+    def serialize_dt(self, dt: _datetime | None, _info):
         """
         レスポンスをJSONにする直前に呼ばれます。
         UTCの時間を JST (+09:00) に変換して返します。
