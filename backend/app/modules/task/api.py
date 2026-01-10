@@ -83,7 +83,9 @@ def create_task(
     check_group_admin_permission(current_user, group_id, db)    
 
     new_task = crud.create_task(db, task_in, group_id)
-    
+    if new_task is None:
+        raise HTTPException(status_code=400, detail="タイトルが入力されていません。")
+
     # Slack通知処理
     # グループ情報を取得 (slackトークンを取得するため)
     group = db.query(group_models.Group).filter(group_models.Group.group_id == group_id).first()

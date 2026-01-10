@@ -26,11 +26,14 @@ def utc_to_jst(task: models.Task):
 
 # --- Task本体 ---
 
-def create_task(db: Session, task_in: schemas.TaskCreate, group_id: str):
+def create_task(db: Session, task_in: schemas.TaskCreate, group_id: str):        
     db_task = models.Task(
         **task_in.model_dump(),
         group_id=group_id
     )
+    if db_task.title == "":
+        return None
+
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
@@ -111,6 +114,7 @@ def get_task(db: Session, task_id: str, group_id: str):
 
     task = utc_to_jst(task)
 
+    logger.info(f'GET: current title is {task.title}')
     logger.info(f'GET: current date is {task.date}, current time is {task.time_span_begin} - {task.time_span_end}')
     return task
 
